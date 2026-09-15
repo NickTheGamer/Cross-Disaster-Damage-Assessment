@@ -1,0 +1,5 @@
+# Personal working files — not shared
+local/
+
+# xBD imagery and label archives — far too large for git
+raw_dataset/
