@@ -1,0 +1,15 @@
+# Copy to local/xbd_urls.txt and paste your signed URLs from
+# https://xview2.org/download  (sign in first).
+#
+# NOTE: paste into local/xbd_urls.txt, NOT this file — local/ is gitignored,
+# and these URLs carry auth tokens that must never be committed.
+#
+# Format: <key> <url>     — one per line, keys must match exactly.
+# These URLs are short-lived. If one goes stale, reload the page and replace it;
+# the download resumes from where it stopped.
+#
+train
+tier3
+test
+hold
+geotransforms

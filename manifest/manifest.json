@@ -1,0 +1,26 @@
+{
+  "generated": "2026-09-16T14:20:04",
+  "git_commit": "0e847a115dadc5f7ad8b508b882130d9acb5a3f4",
+  "script": "scripts/build_manifest.py",
+  "n_chips": 11034,
+  "n_usable": 6286,
+  "chips_csv_sha256": "48c08b22afaf7e505c61d0a2e1fe6e30dd5ff11b34b3c54342e948344b88e667",
+  "source_archive_sha1": {
+    "train": "b37a4ef4ee9c909e2b19d046e49d42ee3965714b",
+    "tier3": "5bf6aaf8a71980b633fb4661776a99a200891de5",
+    "test": "86ed3dba2f8d16ceceb75d451005054fefa9616f",
+    "hold": "fe7f162f0895bfaff134cab3abc23872f38d17da"
+  },
+  "policy": {
+    "triangulation_coords": "pixel_xy",
+    "usable_rule": "files_ok & n_distinct_centroids>=3 & delaunay_ok & n_labelled>=1",
+    "near_edge_px": 50,
+    "note": "bin edges, subset budget and train/val splits are layer 2"
+  },
+  "versions": {
+    "python": "3.12.3",
+    "numpy": "2.5.3",
+    "scipy": "1.18.1",
+    "pandas": "3.0.5"
+  }
+}

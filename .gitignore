@@ -3,3 +3,8 @@ local/
 
 # xBD imagery and label archives — far too large for git
 raw_dataset/
+
+# Python environment
+.venv/
+__pycache__/
+*.pyc
