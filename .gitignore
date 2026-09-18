@@ -4,6 +4,9 @@ local/
 # xBD imagery and label archives — far too large for git
 raw_dataset/
 
+# local testing for implementation purposes
+testing/
+
 # Python environment
 .venv/
 __pycache__/
