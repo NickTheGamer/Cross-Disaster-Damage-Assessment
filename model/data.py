@@ -7,6 +7,7 @@ from pathlib import Path
 import numpy as np
 import torch
 from PIL import Image
+from scipy.spatial import Delaunay, QhullError
 
 CLASSES = ("no-damage", "minor-damage", "major-damage", "destroyed")
 LABEL = {c: i for i, c in enumerate(CLASSES)}
@@ -24,7 +25,9 @@ class Chip:
     pre: torch.Tensor     # [N,3,crop,crop]
     post: torch.Tensor    # [N,3,crop,crop]
     y: torch.Tensor       # [N]  0-3, and -1 for un-classified
-    pos: torch.Tensor     # [N,2] envelope centroids, for the Delaunay graph later
+    pos: torch.Tensor     # [N,2] envelope centroids
+    edge_index: torch.Tensor  # [2,2E] Delaunay neighbours, both directions
+    edge_len: torch.Tensor    # [2E] edge length in pixels, for distance weighting
 
 
 def _envelopes(feats):
@@ -34,6 +37,27 @@ def _envelopes(feats):
         xs, ys = n[0::2], n[1::2]
         out[i] = xs.min(), ys.min(), xs.max(), ys.max()
     return out
+
+
+def _delaunay_edges(pos):
+    # Delaunay needs distinct points, so triangulate the unique centroids and map back.
+    # Only one chip in 6,286 has a co-located pair, but a silent index mismatch would be nasty.
+    uniq, inv = np.unique(pos, axis=0, return_inverse=True)
+    if len(uniq) < 3:
+        return torch.zeros(2, 0, dtype=torch.long)
+    try:
+        simplices = Delaunay(uniq).simplices
+    except (QhullError, ValueError):       # every point on one line
+        return torch.zeros(2, 0, dtype=torch.long)
+
+    members = [np.flatnonzero(inv == u) for u in range(len(uniq))]
+    pairs = {(min(a, b), max(a, b)) for s in simplices
+             for a, b in ((s[0], s[1]), (s[1], s[2]), (s[0], s[2]))}
+
+    e = [(i, j) for a, b in pairs for i in members[a] for j in members[b]]
+    e += [(i, j) for g in members for i in g for j in g if i != j]   # co-located buildings
+    e += [(j, i) for i, j in e]                                      # undirected
+    return torch.tensor(sorted(set(e)), dtype=torch.long).T if e else torch.zeros(2, 0, dtype=torch.long)
 
 
 def _to_tensor(im):
@@ -60,8 +84,11 @@ def load_chip(chip_id, root="testing", crop=128):
 
     # un-classified stays a node but gets -1 so the loss skips it
     y = torch.tensor([LABEL.get(f["properties"]["subtype"], -1) for f in feats])
-    pos = torch.tensor((env[:, :2] + env[:, 2:]) / 2, dtype=torch.float32)
-    return Chip(chip_id, torch.stack(out["pre"]), torch.stack(out["post"]), y, pos)
+    cen = (env[:, :2] + env[:, 2:]) / 2
+    pos = torch.tensor(cen, dtype=torch.float32)
+    ei = _delaunay_edges(cen)
+    el = (pos[ei[0]] - pos[ei[1]]).norm(dim=1) if ei.numel() else torch.zeros(0)
+    return Chip(chip_id, torch.stack(out["pre"]), torch.stack(out["post"]), y, pos, ei, el)
 
 
 def chip_ids(root="testing"):
