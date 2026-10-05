@@ -22,12 +22,13 @@ _NUM = re.compile(r"-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?")
 @dataclass
 class Chip:
     chip_id: str
-    pre: torch.Tensor     # [N,3,crop,crop]
-    post: torch.Tensor    # [N,3,crop,crop]
+    pre: torch.Tensor     # [N,3,crop,crop] uint8 - normalise() on the GPU
+    post: torch.Tensor    # [N,3,crop,crop] uint8
     y: torch.Tensor       # [N]  0-3, and -1 for un-classified
     pos: torch.Tensor     # [N,2] envelope centroids
     edge_index: torch.Tensor  # [2,2E] Delaunay neighbours, both directions
     edge_len: torch.Tensor    # [2E] edge length in pixels, for distance weighting
+    agree: torch.Tensor = None   # [N] share of labelled neighbours with the same class
 
 
 def _envelopes(feats):
@@ -60,9 +61,30 @@ def _delaunay_edges(pos):
     return torch.tensor(sorted(set(e)), dtype=torch.long).T if e else torch.zeros(2, 0, dtype=torch.long)
 
 
-def _to_tensor(im):
-    x = torch.from_numpy(np.array(im, dtype=np.uint8)).permute(2, 0, 1).float() / 255
-    return (x - MEAN) / STD
+def _to_u8(im):
+    return torch.from_numpy(np.array(im, dtype=np.uint8)).permute(2, 0, 1)
+
+
+def normalise(x):
+    # crops are stored as uint8 and normalised wherever they land - 4x less disk and 4x
+    # less host-to-GPU traffic than keeping floats, and exact rather than quantised
+    return (x.float() / 255 - MEAN.to(x.device)) / STD.to(x.device)
+
+
+def neighbour_agreement(y, edge_index):
+    # share of a node's labelled neighbours that share its class. Nodes below 1.0 are the
+    # boundary cases the gate exists for; nan where a node has no labelled neighbour.
+    out = torch.full((len(y),), float("nan"))
+    if edge_index.numel() == 0:
+        return out
+    src, dst = edge_index
+    keep = (y[src] >= 0) & (y[dst] >= 0)
+    src, dst = src[keep], dst[keep]
+    same = (y[src] == y[dst]).float()
+    num = torch.zeros(len(y)).index_add_(0, dst, same)
+    den = torch.zeros(len(y)).index_add_(0, dst, torch.ones_like(same))
+    out[den > 0] = num[den > 0] / den[den > 0]
+    return out
 
 
 def load_chip(chip_id, root="testing", crop=128):
@@ -80,7 +102,7 @@ def load_chip(chip_id, root="testing", crop=128):
         box = (max(0, int(x0)), max(0, int(y0)),
                min(W, max(int(x1), int(x0) + 1)), min(H, max(int(y1), int(y0) + 1)))
         for t, im in imgs.items():
-            out[t].append(_to_tensor(im.crop(box).resize((crop, crop), Image.BILINEAR)))
+            out[t].append(_to_u8(im.crop(box).resize((crop, crop), Image.BILINEAR)))
 
     # un-classified stays a node but gets -1 so the loss skips it
     y = torch.tensor([LABEL.get(f["properties"]["subtype"], -1) for f in feats])
@@ -88,7 +110,12 @@ def load_chip(chip_id, root="testing", crop=128):
     pos = torch.tensor(cen, dtype=torch.float32)
     ei = _delaunay_edges(cen)
     el = (pos[ei[0]] - pos[ei[1]]).norm(dim=1) if ei.numel() else torch.zeros(0)
-    return Chip(chip_id, torch.stack(out["pre"]), torch.stack(out["post"]), y, pos, ei, el)
+    return Chip(chip_id, torch.stack(out["pre"]), torch.stack(out["post"]), y, pos, ei, el,
+                neighbour_agreement(y, ei))
+
+
+def load_cached(path):
+    return Chip(**torch.load(path, map_location="cpu", weights_only=True))
 
 
 def chip_ids(root="testing"):

@@ -11,7 +11,7 @@ import argparse, time
 import numpy as np
 import torch
 
-from data import _delaunay_edges, chip_ids, load_chip
+from data import _delaunay_edges, chip_ids, load_chip, normalise
 from loss import damage_loss
 from net import DamageNet
 
@@ -94,6 +94,7 @@ def main():
     p.add_argument("--arms", nargs="+", default=["mlp", "sage", "gate", "dist"],
                    choices=["mlp", "sage", "gate", "dist"])
     p.add_argument("--combine", default="subtract", choices=["subtract", "concat"])
+    p.add_argument("--sigma-init", type=float, help="arm 4 kernel width in px")
     p.add_argument("--ckpt", action="store_true", help="gradient checkpointing")
     p.add_argument("--fp32", action="store_true", help="also time in full fp32")
     a = p.parse_args()
@@ -116,8 +117,8 @@ def main():
             if n:
                 # synthetic chip: random crops on a random point set, so the graph has a
                 # realistic Delaunay degree rather than being empty
-                pre = torch.randn(n, 3, a.crop, a.crop)
-                post = torch.randn(n, 3, a.crop, a.crop)
+                pre = (torch.rand(n, 3, a.crop, a.crop) * 255).to(torch.uint8)
+                post = (torch.rand(n, 3, a.crop, a.crop) * 255).to(torch.uint8)
                 y = torch.randint(0, 4, (n,))
                 pos = np.random.default_rng(0).uniform(0, 1024, (n, 2))
                 ei = _delaunay_edges(pos)
@@ -125,14 +126,15 @@ def main():
             else:
                 c = load_chip(name, crop=a.crop)
                 pre, post, y, ei, el, n = c.pre, c.post, c.y, c.edge_index, c.edge_len, c.pre.shape[0]
-        pre, post, y, ei, el = pre.to(dev), post.to(dev), y.to(dev), ei.to(dev), el.to(dev)
+        pre, post = normalise(pre.to(dev)), normalise(post.to(dev))
+        y, ei, el = y.to(dev), ei.to(dev), el.to(dev)
         tot_wall += tl.wall; tot_cpu += tl.cpu
         print(f"{name:26} {n:>5} {ei.shape[1]//2:>6}   load {tl.wall:.2f}s wall / {tl.cpu:.2f}s cpu")
 
         for arm in a.arms:
             for label, amp in modes:
                 net = DamageNet(arm=arm, combine=a.combine, chunk=a.chunk,
-                                use_ckpt=a.ckpt).to(dev).train()
+                                sigma_init=a.sigma_init, use_ckpt=a.ckpt).to(dev).train()
                 try:
                     r = train_steps(net, pre, post, y, ei, el, amp, a.steps)
                     print(f"{'':26} {'':>5} {'':>6} {arm:>5} {label:>5} "

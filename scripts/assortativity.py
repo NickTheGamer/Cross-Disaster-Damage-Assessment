@@ -5,7 +5,7 @@
 #
 # Distances are in pixels; effective imagery scale is roughly 0.45 m/px.
 
-import csv, json, re, sys
+import argparse, csv, json, re, sys
 from collections import defaultdict
 from pathlib import Path
 
@@ -19,6 +19,7 @@ LABEL = {c: i for i, c in enumerate(DAMAGE)}
 NUM = re.compile(r"-?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?")
 DIST_BINS = [0, 25, 50, 100, 200, 400, 10**9]
 FINE = list(range(0, 401, 20)) + [10**9]
+FOLDS = ["earthquake", "fire", "flooding", "tsunami", "volcano", "wind"]
 
 
 def chip_edges(feats):
@@ -52,9 +53,18 @@ def newman_r(mix):
 
 
 def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--selection", help="restrict to the chips in a selection csv")
+    ap.add_argument("--write-sigma", help="write per-LODO-run sigma into this selection json")
+    args = ap.parse_args()
+
     usable = {r["chip_id"]: (r["fold"], r["split"])
               for r in csv.DictReader(open(ROOT / "manifest" / "chips.csv"))
               if r["usable"] == "True"}
+    if args.selection:
+        keep = {r["chip_id"] for r in csv.DictReader(open(args.selection))}
+        usable = {k: v for k, v in usable.items() if k in keep}
+        print(f"restricted to {len(usable):,} selected chips", file=sys.stderr)
 
     mix4 = defaultdict(lambda: np.zeros((4, 4)))        # 4-class mixing matrix per fold
     mix2 = defaultdict(lambda: np.zeros((2, 2)))        # damaged / not
@@ -127,6 +137,31 @@ def main():
         a = np.array(lens[f])
         print(f"{f:10} {100*(a>50).mean():>6.1f}% {100*(a>100).mean():>6.1f}% "
               f"{100*(a>200).mean():>6.1f}% {np.median(a):>5.0f}px")
+
+    if args.write_sigma:
+        # sigma per fold from the measured decay; folds with no spatial structure carry no
+        # information about a correlation length, so they are left out of the estimate
+        sig = {}
+        for f in folds:
+            e = mix4[f] / mix4[f].sum()
+            chance, obs = (e.sum(axis=1) ** 2).sum(), np.trace(e)
+            if obs / chance < 1.05:
+                continue
+            exc = np.array([s_ / t - chance if t >= 200 else np.nan for s_, t in fine[f]])
+            half = next((FINE[i] for i in range(len(exc))
+                         if np.isfinite(exc[i]) and exc[i] < 0.5 * exc[0]), None)
+            sig[f] = float((half or FINE[-2]) / np.log(2))      # censored -> last real bin edge
+        doc = json.loads(Path(args.write_sigma).read_text())
+        # each run's init uses only the folds it is allowed to see
+        doc["sigma_init_px"] = {h: round(float(np.median([v for k, v in sig.items() if k != h])), 1)
+                                for h in FOLDS}
+        doc["sigma_per_fold_px"] = {k: round(v, 1) for k, v in sig.items()}
+        doc["sigma_excluded"] = [f for f in folds if f not in sig]
+        Path(args.write_sigma).write_text(json.dumps(doc, indent=2) + "\n")
+        print(f"\n=== sigma written to {args.write_sigma} ===")
+        print("  per fold :", {k: round(v) for k, v in sig.items()})
+        print("  per run  :", doc["sigma_init_px"])
+        print("  excluded :", doc["sigma_excluded"])
 
     print(f"\n=== per-node neighbour agreement — is there heterogeneity for a gate to exploit? ===\n")
     print(f"{'fold':10} {'nodes':>8} {'mean':>6} {'all agree':>10} {'none agree':>11} {'mixed':>7}")

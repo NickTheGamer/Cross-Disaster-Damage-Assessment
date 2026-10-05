@@ -134,19 +134,21 @@ class GraphNeck(nn.Module):
 
 
 NECKS = {
-    "mlp": lambda d: GraphNeck(d, use_graph=False),
-    "sage": lambda d: GraphNeck(d, use_graph=True),
-    "gate": lambda d: GraphNeck(d, use_graph=True, gated=True),
-    "dist": lambda d: GraphNeck(d, use_graph=True, gated=True, dist=True),
+    "mlp": lambda d, **kw: GraphNeck(d, use_graph=False),
+    "sage": lambda d, **kw: GraphNeck(d, use_graph=True),
+    "gate": lambda d, **kw: GraphNeck(d, use_graph=True, gated=True),
+    "dist": lambda d, **kw: GraphNeck(d, use_graph=True, gated=True, dist=True, **kw),
 }
 
 
 class DamageNet(nn.Module):
     # the three ablation arms differ by this one argument and nothing else
-    def __init__(self, arm="mlp", combine="subtract", n_classes=4, **kw):
+    def __init__(self, arm="mlp", combine="subtract", n_classes=4, sigma_init=None, **kw):
         super().__init__()
         self.encoder = SiameseEncoder(combine=combine, **kw)
-        self.neck = NECKS[arm](self.encoder.out_dim)
+        # sigma_init comes from the training folds' measured decay, per LODO run
+        self.neck = NECKS[arm](self.encoder.out_dim,
+                               **({"sigma_init": sigma_init} if sigma_init else {}))
         self.head = nn.Linear(self.neck.out_dim, n_classes)
 
     def forward(self, pre, post, edge_index=None, edge_len=None):

@@ -11,3 +11,6 @@ testing/
 .venv/
 __pycache__/
 *.pyc
+
+# Materialised training tensors - rebuildable from manifest/ + raw_dataset/
+processed/

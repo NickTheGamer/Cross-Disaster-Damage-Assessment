@@ -1,0 +1,234 @@
+{
+  "budget_per_fold": 20000,
+  "bin_edges": [
+    0.0,
+    1e-12,
+    0.25,
+    0.5,
+    1.01
+  ],
+  "allocation": "equal share, shortfall redistributed",
+  "val_frac": 0.125,
+  "seed": 760,
+  "chips_csv_sha256": "48c08b22afaf7e505c61d0a2e1fe6e30dd5ff11b34b3c54342e948344b88e667",
+  "selection_csv_sha256": "893a1d936e70d0425d1743722f78b8f5046a5c22973367d86217ed2fb8256453",
+  "note": "sigma_init per run is derived separately from training-fold assortativity",
+  "per_fold": {
+    "earthquake": {
+      "chips": 64,
+      "buildings": 19777,
+      "labelled": 19751,
+      "damaged": 186,
+      "damage_rate": 0.0094,
+      "bins": {
+        "0": {
+          "n_chips": 36,
+          "N_chips": 144,
+          "buildings": 9840,
+          "target": 10000
+        },
+        "(0,.25]": {
+          "n_chips": 28,
+          "N_chips": 47,
+          "buildings": 9937,
+          "target": 10000
+        },
+        "(.25,.5]": {
+          "n_chips": 0,
+          "N_chips": 0,
+          "buildings": 0,
+          "target": 0
+        },
+        "(.5,1]": {
+          "n_chips": 0,
+          "N_chips": 0,
+          "buildings": 0,
+          "target": 0
+        }
+      }
+    },
+    "fire": {
+      "chips": 748,
+      "buildings": 19931,
+      "labelled": 19217,
+      "damaged": 6108,
+      "damage_rate": 0.3178,
+      "bins": {
+        "0": {
+          "n_chips": 132,
+          "N_chips": 1111,
+          "buildings": 4953,
+          "target": 5000
+        },
+        "(0,.25]": {
+          "n_chips": 139,
+          "N_chips": 469,
+          "buildings": 4992,
+          "target": 5000
+        },
+        "(.25,.5]": {
+          "n_chips": 242,
+          "N_chips": 286,
+          "buildings": 4994,
+          "target": 5000
+        },
+        "(.5,1]": {
+          "n_chips": 235,
+          "N_chips": 502,
+          "buildings": 4992,
+          "target": 5000
+        }
+      }
+    },
+    "flooding": {
+      "chips": 329,
+      "buildings": 19361,
+      "labelled": 18662,
+      "damaged": 6337,
+      "damage_rate": 0.3396,
+      "bins": {
+        "0": {
+          "n_chips": 75,
+          "N_chips": 574,
+          "buildings": 4780,
+          "target": 5000
+        },
+        "(0,.25]": {
+          "n_chips": 56,
+          "N_chips": 361,
+          "buildings": 4810,
+          "target": 5000
+        },
+        "(.25,.5]": {
+          "n_chips": 72,
+          "N_chips": 154,
+          "buildings": 4789,
+          "target": 5000
+        },
+        "(.5,1]": {
+          "n_chips": 126,
+          "N_chips": 690,
+          "buildings": 4982,
+          "target": 5000
+        }
+      }
+    },
+    "tsunami": {
+      "chips": 96,
+      "buildings": 19438,
+      "labelled": 18856,
+      "damaged": 6317,
+      "damage_rate": 0.335,
+      "bins": {
+        "0": {
+          "n_chips": 23,
+          "N_chips": 125,
+          "buildings": 4693,
+          "target": 5000
+        },
+        "(0,.25]": {
+          "n_chips": 22,
+          "N_chips": 88,
+          "buildings": 4930,
+          "target": 5000
+        },
+        "(.25,.5]": {
+          "n_chips": 22,
+          "N_chips": 33,
+          "buildings": 4841,
+          "target": 5000
+        },
+        "(.5,1]": {
+          "n_chips": 29,
+          "N_chips": 35,
+          "buildings": 4974,
+          "target": 5000
+        }
+      }
+    },
+    "volcano": {
+      "chips": 175,
+      "buildings": 4311,
+      "labelled": 3632,
+      "damaged": 655,
+      "damage_rate": 0.1803,
+      "bins": {
+        "0": {
+          "n_chips": 128,
+          "N_chips": 128,
+          "buildings": 2906,
+          "target": 2906
+        },
+        "(0,.25]": {
+          "n_chips": 12,
+          "N_chips": 12,
+          "buildings": 327,
+          "target": 327
+        },
+        "(.25,.5]": {
+          "n_chips": 10,
+          "N_chips": 10,
+          "buildings": 270,
+          "target": 270
+        },
+        "(.5,1]": {
+          "n_chips": 25,
+          "N_chips": 25,
+          "buildings": 808,
+          "target": 808
+        }
+      }
+    },
+    "wind": {
+      "chips": 271,
+      "buildings": 19807,
+      "labelled": 19331,
+      "damaged": 6503,
+      "damage_rate": 0.3364,
+      "bins": {
+        "0": {
+          "n_chips": 74,
+          "N_chips": 302,
+          "buildings": 4881,
+          "target": 5000
+        },
+        "(0,.25]": {
+          "n_chips": 64,
+          "N_chips": 315,
+          "buildings": 4972,
+          "target": 5000
+        },
+        "(.25,.5]": {
+          "n_chips": 56,
+          "N_chips": 281,
+          "buildings": 4992,
+          "target": 5000
+        },
+        "(.5,1]": {
+          "n_chips": 77,
+          "N_chips": 594,
+          "buildings": 4962,
+          "target": 5000
+        }
+      }
+    }
+  },
+  "sigma_init_px": {
+    "earthquake": 577.1,
+    "fire": 577.1,
+    "flooding": 404.0,
+    "tsunami": 404.0,
+    "volcano": 404.0,
+    "wind": 577.1
+  },
+  "sigma_per_fold_px": {
+    "fire": 230.8,
+    "flooding": 577.1,
+    "tsunami": 577.1,
+    "volcano": 577.1,
+    "wind": 173.1
+  },
+  "sigma_excluded": [
+    "earthquake"
+  ]
+}
