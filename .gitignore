@@ -14,3 +14,6 @@ __pycache__/
 
 # Materialised training tensors - rebuildable from manifest/ + raw_dataset/
 processed/
+
+# run outputs
+results/
