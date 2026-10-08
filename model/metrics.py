@@ -7,8 +7,15 @@
 import torch
 
 CLASSES = ("no-damage", "minor", "major", "destroyed")
-# collapses reuse from_confusion, so names are looked up by matrix size
-NAMES = {4: CLASSES, 3: ("no-damage", "minor", "major+destroyed"), 2: ("no-damage", "damaged")}
+
+# 4-class predictions re-scored under coarser groupings, all computed from the same
+# confusion matrix so nothing needs retraining. "mid" keeps the two classes that work
+# on unseen hazards and pools the ambiguous middle; "3" is Ismail's merge.
+COLLAPSE = {
+    "3":   ([[0], [1], [2, 3]], ("no-damage", "minor", "major+destroyed")),
+    "mid": ([[0], [1, 2], [3]], ("no-damage", "minor+major", "destroyed")),
+    "2":   ([[0], [1, 2, 3]], ("no-damage", "damaged")),
+}
 
 
 def confusion(pred, y, weight=None, n_classes=4):
@@ -22,8 +29,8 @@ def confusion(pred, y, weight=None, n_classes=4):
     return cm
 
 
-def from_confusion(cm):
-    names = NAMES.get(cm.shape[0], tuple(f"c{i}" for i in range(cm.shape[0])))
+def from_confusion(cm, names=None):
+    names = names or CLASSES[:cm.shape[0]]
     tp = cm.diag()
     fp, fn = cm.sum(0) - tp, cm.sum(1) - tp
     prec = tp / (tp + fp).clamp(min=1e-9)
@@ -42,9 +49,7 @@ def from_confusion(cm):
 
 
 def collapse(cm, how):
-    # 4-class predictions re-scored as 3-class or binary without retraining:
-    # "3" merges major+destroyed (Ismail's choice), "2" is any damage vs none
-    groups = {"3": [[0], [1], [2, 3]], "2": [[0], [1, 2, 3]]}[how]
+    groups, _ = COLLAPSE[how]
     k = len(groups)
     out = torch.zeros(k, k, device=cm.device)
     for a, ga in enumerate(groups):
@@ -58,13 +63,13 @@ def evaluate(pred, y, weight=None, agree=None):
     # included - mixing them silently reports a weighted number under an unweighted name
     raw = confusion(pred, y, None)
     out = {"as_sampled": from_confusion(raw)}
-    for how in ("3", "2"):
-        out[f"collapsed_{how}"] = from_confusion(collapse(raw, how))
+    for how, (_, names) in COLLAPSE.items():
+        out[f"collapsed_{how}"] = from_confusion(collapse(raw, how), names)
     if weight is not None:
         wcm = confusion(pred, y, weight)
         out["natural"] = from_confusion(wcm)
-        for how in ("3", "2"):
-            out[f"natural_collapsed_{how}"] = from_confusion(collapse(wcm, how))
+        for how, (_, names) in COLLAPSE.items():
+            out[f"natural_collapsed_{how}"] = from_confusion(collapse(wcm, how), names)
     if agree is not None:
         # boundary nodes are where uniform smoothing destroys information, so they are
         # where the gate has to earn its place. Interior nodes are easy either way.
