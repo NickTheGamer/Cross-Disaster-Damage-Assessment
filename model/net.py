@@ -64,7 +64,10 @@ class SageLayer(nn.Module):
         if self.neigh_lin is None:
             return out
         src, dst = edge_index
-        w = torch.ones(src.shape[0], device=h.device, dtype=h.dtype) if edge_weight is None else edge_weight
+        # edge weights arrive in fp32 (sigma is a fp32 parameter) while h is bf16 under
+        # autocast, and index_add_ refuses the mismatch
+        w = (torch.ones(src.shape[0], device=h.device, dtype=h.dtype)
+             if edge_weight is None else edge_weight.to(h.dtype))
         num = torch.zeros_like(h).index_add_(0, dst, h[src] * w[:, None])
         den = torch.zeros(h.shape[0], device=h.device, dtype=h.dtype).index_add_(0, dst, w)
         # isolated nodes get no neighbour term rather than a divide by zero
