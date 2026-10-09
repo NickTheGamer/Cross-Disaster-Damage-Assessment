@@ -27,6 +27,10 @@ def main():
     p.add_argument("--out", default=str(ROOT / "results"))
     p.add_argument("--force", action="store_true", help="rerun even if a result exists")
     a = p.parse_args()
+    # these may be given relative to wherever the user ran this from
+    a.selection = str(Path(a.selection).resolve())
+    a.out = str(Path(a.out).resolve())
+    a.processed = str(Path(getattr(a, 'processed', ROOT / 'processed')).resolve())
 
     runs = [(arm, f) for f in a.folds for arm in a.arms]
     out = Path(a.out)
@@ -58,7 +62,7 @@ def main():
                "--held-out", fold, "--weights", a.weights, "--epochs", str(a.epochs),
                "--patience", str(a.patience), "--budget", str(a.budget),
                "--seed", str(a.seed), "--out", a.out, "--selection", a.selection]
-        if subprocess.run(cmd, cwd=ROOT / "model").returncode != 0:
+        if subprocess.run(cmd).returncode != 0:
             print(f"  FAILED: {arm}/{fold}")
             failed.append((arm, fold))
 
@@ -79,7 +83,8 @@ def main():
               f"- they may have been truncated:")
         for arm, fold, ep in near:
             print(f"  {arm:5} {fold:11} best epoch {ep}")
-    else:
+    elif any((Path(a.out) / f"{arm}_{f}_{a.weights}_s{a.seed}.json").exists()
+             for arm, f in runs):
         print(f"\nno run peaked near the {a.epochs}-epoch ceiling; budget was sufficient")
     return 1 if failed else 0
 
