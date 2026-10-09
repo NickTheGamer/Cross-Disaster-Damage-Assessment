@@ -1,0 +1,18 @@
+{
+  "kind": "in-domain",
+  "train_frac": 0.7,
+  "val_frac": 0.15,
+  "seed": 761,
+  "stratified_by": "damage bin, within fold",
+  "note": "role_<fold> covers only that fold's chips; all others are 'unused'. Training sets are ~6x smaller than the LODO runs - a confound that makes any in-domain advantage conservative.",
+  "selection_csv_sha256": "0d36881fb7218ae715c11fd64ed3b9fd93edc7b0c1b0e74dd841302d5c793997",
+  "sigma_init_px": {
+    "earthquake": 577.1,
+    "fire": 230.8,
+    "flooding": 577.1,
+    "tsunami": 577.1,
+    "volcano": 577.1,
+    "wind": 173.1
+  },
+  "sigma_source": "per-fold decay from selection_v1.json"
+}

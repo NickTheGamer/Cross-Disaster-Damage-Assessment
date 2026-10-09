@@ -23,6 +23,7 @@ def main():
     p.add_argument("--patience", type=int, default=10)
     p.add_argument("--budget", type=int, default=1000)
     p.add_argument("--seed", type=int, default=760)
+    p.add_argument("--selection", default=str(ROOT / "manifest" / "selection_v1.csv"))
     p.add_argument("--out", default=str(ROOT / "results"))
     p.add_argument("--force", action="store_true", help="rerun even if a result exists")
     a = p.parse_args()
@@ -56,7 +57,7 @@ def main():
         cmd = [sys.executable, str(ROOT / "model" / "train.py"), "--arm", arm,
                "--held-out", fold, "--weights", a.weights, "--epochs", str(a.epochs),
                "--patience", str(a.patience), "--budget", str(a.budget),
-               "--seed", str(a.seed), "--out", a.out]
+               "--seed", str(a.seed), "--out", a.out, "--selection", a.selection]
         if subprocess.run(cmd, cwd=ROOT / "model").returncode != 0:
             print(f"  FAILED: {arm}/{fold}")
             failed.append((arm, fold))
