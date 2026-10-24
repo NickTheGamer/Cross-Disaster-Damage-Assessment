@@ -77,7 +77,7 @@ def class_weights(items, scheme):
 @torch.no_grad()
 def run_eval(net, items, dev, amp):
     net.eval()
-    P, Y, W, A = [], [], [], []
+    P, Y, W, A, G = [], [], [], [], []
     for path, weight in items:
         c = load_cached(path)
         pre, post, y, ei, el = to_device(c, dev)
@@ -87,8 +87,12 @@ def run_eval(net, items, dev, amp):
         Y.append(y)
         W.append(torch.full((y.shape[0],), weight, device=dev))
         A.append(c.agree.to(dev))
+        # last_gate is overwritten every forward, so collect it per chip or only the final
+        # chip survives to the results file
+        if getattr(net.neck, "last_gate", None) is not None:
+            G.append(net.neck.last_gate.float().mean(1))
     net.train()
-    return torch.cat(P), torch.cat(Y), torch.cat(W), torch.cat(A)
+    return torch.cat(P), torch.cat(Y), torch.cat(W), torch.cat(A), (torch.cat(G) if G else None)
 
 
 def run(arm, held, a):
@@ -127,7 +131,7 @@ def run(arm, held, a):
                 step += float(l)
             opt.step()
             tot += step; nb += 1
-        p, y, w, ag = run_eval(net, va, dev, bool(a.amp))
+        p, y, w, ag, _ = run_eval(net, va, dev, bool(a.amp))
         vm = evaluate(p, y)["as_sampled"]["macro_f1"]
         sigma = float(net.neck.log_sigma.exp()) if getattr(net.neck, "dist", False) else None
         hist.append(dict(epoch=ep, train_loss=tot / max(nb, 1), val_macro_f1=vm,
@@ -143,7 +147,7 @@ def run(arm, held, a):
             break
 
     net.load_state_dict(best_state)                 # the test fold is seen once, from here
-    p, y, w, ag = run_eval(net, te, dev, bool(a.amp))
+    p, y, w, ag, gates = run_eval(net, te, dev, bool(a.amp))
     res = evaluate(p, y, weight=w, agree=ag)
     out = dict(arm=arm, held_out=held, seed=a.seed, best_epoch=best_ep, best_val_macro_f1=best,
                class_weights=None if cw is None else cw.tolist(),
@@ -151,8 +155,8 @@ def run(arm, held, a):
                sigma_init=meta["sigma_init_px"][held],
                sigma_final=float(net.neck.log_sigma.exp()) if getattr(net.neck, "dist", False) else None,
                n_train=len(tr), n_val=len(va), n_test=len(te), history=hist, test=res)
-    if getattr(net.neck, "last_gate", None) is not None:
-        out["gate_mean"] = float(net.neck.last_gate.mean())
+    if gates is not None:
+        out["gate_mean"] = float(gates.mean())      # over every test building
     Path(a.out).mkdir(parents=True, exist_ok=True)
     Path(a.out, f"{arm}_{held}_{a.weights}_s{a.seed}.json").write_text(json.dumps(out, indent=2) + "\n")
     return out
