@@ -28,6 +28,7 @@ scripts/build_indomain.py   in-domain 70/15/15 splits for the supporting experim
 scripts/run_grid.py         runs the ablation grid (calls model/train.py per run)  <- replicates results
 scripts/aggregate.py        prints every results table from the run JSONs
 scripts/write_findings.py   regenerates findings.md from the run JSONs + findings_template.md
+scripts/split_leakage.py    spatial overlap of xView2's official splits and the no-imagery label-copy baseline
 model/data.py               chip loading, envelope crops, Delaunay edges
 model/net.py                Siamese encoder (frozen BatchNorm) and the four-arm GraphNeck
 model/loss.py               masked cross-entropy, class weights
@@ -87,6 +88,9 @@ XBD_URL_FILE=local/xbd_urls.txt ./scripts/fetch_xbd.sh
 # 8. tables and findings
 .venv/bin/python scripts/aggregate.py --seed 760
 .venv/bin/python scripts/write_findings.py > findings.md
+
+# 9. spatial entanglement of xView2's official split (CPU, ~10 s)
+.venv/bin/python scripts/split_leakage.py
 ```
 
 `run_grid.py` uses the frozen configuration: sqrt class weights, 80-epoch ceiling, patience
